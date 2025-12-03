@@ -87,6 +87,66 @@ const ProductsController = {
             res.redirect('/cart');
         });
     }
+,
+
+    updateCartQuantity: (req, res) => {
+        const cart = req.session.cart || [];
+        const productId = parseInt(req.params.id);
+        const quantity = parseInt(req.body.quantity);
+        const item = cart.find(i => parseInt(i.id) === productId);
+        if (item && quantity > 0) item.quantity = quantity;
+        req.session.cart = cart;
+        res.redirect('/cart');
+    },
+
+    removeFromCart: (req, res) => {
+        req.session.cart = (req.session.cart || []).filter(i => parseInt(i.id) !== parseInt(req.params.id));
+        res.redirect('/cart');
+    },
+
+    checkoutView: (req, res) => {
+        const cart = req.session.cart || [];
+        if (!cart.length) {
+            req.flash('error', 'Your cart is empty');
+            return res.redirect('/cart');
+        }
+        const total = cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.quantity) || 0), 0).toFixed(2);
+        res.render('checkout', { cart, total, user: req.session.user });
+    },
+
+    placeOrderView: (req, res) => {
+        const cart = req.session.cart || [];
+        if (!cart.length) {
+            req.flash('error', 'Your cart is empty');
+            return res.redirect('/cart');
+        }
+
+        const { fullName, address, contact, paymentMethod } = req.body;
+        if (!fullName || !address || !contact || !paymentMethod) {
+            req.flash('error', 'Please complete all checkout fields');
+            return res.redirect('/checkout');
+        }
+
+        const total = cart.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * (parseInt(item.quantity) || 0), 0).toFixed(2);
+
+        const order = {
+            id: Date.now(),
+            fullName,
+            address,
+            contact,
+            paymentMethod,
+            cart,
+            total,
+            createdAt: new Date()
+        };
+
+        if (!req.session.orders) req.session.orders = [];
+        req.session.orders.push(order);
+
+        req.session.cart = [];
+
+        res.render('orderConfirmation', { order, user: req.session.user });
+    }
 };
 
 module.exports = ProductsController;
