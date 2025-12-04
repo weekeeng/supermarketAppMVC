@@ -74,29 +74,30 @@ app.get('/', (req, res) => {
     res.render('index', { user: req.session.user });
 });
 
-// Shopping
+// Shopping page
 app.get('/shopping', checkAuthenticated, ProductsController.listProductsViewShopping);
 
 // Product details
 app.get('/product/:id', checkAuthenticated, ProductsController.getProductByIdView);
 
-// Admin inventory
+// Admin inventory page
 app.get('/inventory', checkAuthenticated, checkAdmin, ProductsController.listProductsView);
 
-// Add product (admin)
+// Admin: Add product
 app.get('/addProduct', checkAuthenticated, checkAdmin, (req, res) => {
     res.render('addProduct', { user: req.session.user });
 });
 app.post('/addProduct', checkAuthenticated, checkAdmin, upload.single('image'), ProductsController.addProductView);
 
-// Update product (admin)
+// Admin: Update product
 app.get('/updateProduct/:id', checkAuthenticated, checkAdmin, ProductsController.getProductByIdEditView);
 app.post('/updateProduct/:id', checkAuthenticated, checkAdmin, upload.single('image'), ProductsController.updateProductView);
 
-// Delete product (admin)
+// Admin: Delete product
 app.post('/deleteProduct/:id', checkAuthenticated, checkAdmin, ProductsController.deleteProductView);
 
-// Cart
+// ----------------- CART ROUTES -----------------
+
 app.get('/cart', checkAuthenticated, (req, res) => {
     const cart = req.session.cart || [];
     res.render('cart', { cart, user: req.session.user });
@@ -105,17 +106,21 @@ app.get('/cart', checkAuthenticated, (req, res) => {
 // Add to cart
 app.post('/add-to-cart/:id', checkAuthenticated, ProductsController.addToCart);
 
-// Update cart quantity
+// Update cart item quantity
 app.post('/update-cart/:id', checkAuthenticated, ProductsController.updateCartQuantity);
 
 // Remove from cart
 app.post('/remove-from-cart/:id', checkAuthenticated, ProductsController.removeFromCart);
 
-// Checkout
+// ----------------- CHECKOUT ROUTES -----------------
+
+// ⭐ Checkout View
 app.get('/checkout', checkAuthenticated, ProductsController.checkoutView);
 
-// Place order
+// ⭐ Place Order — updates product quantities
 app.post('/place-order', checkAuthenticated, ProductsController.placeOrderView);
+
+// ----------------- USER ACCOUNT ROUTES -----------------
 
 // Register
 app.get('/register', (req, res) => {

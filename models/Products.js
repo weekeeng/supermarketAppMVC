@@ -25,6 +25,13 @@ const ProductsModel = {
         const sql = 'DELETE FROM products WHERE id = ?';
         db.query(sql, [id], callback);
     }
+,
+
+    // Decrease quantity for a product by a given amount (won't go below 0)
+    decrementQuantity: (id, amount, callback) => {
+        const sql = 'UPDATE products SET quantity = GREATEST(quantity - ?, 0) WHERE id = ?';
+        db.query(sql, [amount, id], callback);
+    }
 };
 
 module.exports = ProductsModel;
