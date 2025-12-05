@@ -9,24 +9,103 @@
   <title>Supermarket App</title>
 
   <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background-color: #F5F2EA; /* soft beige */
+      color: #3B3B3B; /* charcoal */
+    }
+
+    /* NAVBAR */
+    .navbar {
+      background-color: #7A8A5B; /* muted olive */
+    }
+
+    .navbar .navbar-brand,
+    .navbar .nav-link {
+      color: #FFFFFF !important;
+      font-weight: 600;
+    }
+
+    .navbar .nav-link:hover {
+      background-color: #A77E58; /* clay brown hover */
+      border-radius: 5px;
+      transition: 0.3s;
+    }
+
+    /* HEADER */
+    .header-title {
+      font-weight: 700;
+      color: #3B3B3B; /* charcoal */
+    }
+
+    /* BADGES */
+    .badge {
+      background-color: #7A8A5B; /* muted olive */
+      color: #fff;
+      font-weight: 500;
+    }
+
+    /* TABLE */
+    .table thead th {
+      background-color: #E8E3D9; /* soft beige header */
+      color: #3B3B3B; /* charcoal */
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .table tbody tr {
+      background-color: #FFFFFF; /* white rows */
+    }
+
+    .table td {
+      vertical-align: middle;
+      color: #3B3B3B; /* charcoal text */
+    }
+
     .product-img {
       width: 70px;
       height: 70px;
       object-fit: cover;
       border-radius: 10px;
-      border: 1px solid #ddd;
+      border: 1px solid #CFC9BD; /* similar to login input border */
     }
-    .header-title {
-      font-weight: 700;
+
+    /* BUTTONS */
+    .btn-warning {
+      background-color: #7A8A5B; /* muted olive */
+      border-color: #7A8A5B;
+      color: #fff;
+      border-radius: 10px;
+      font-weight: 600;
     }
-    .table thead th {
-      background-color: #343a40;
-      color: white;
-      font-size: 14px;
-      letter-spacing: 0.5px;
+
+    .btn-warning:hover {
+      background-color: #A77E58; /* clay brown hover */
+      border-color: #A77E58;
     }
-    .table td {
-      vertical-align: middle;
+
+    .btn-danger {
+      background-color: #E07A5F; /* muted red to match color scheme */
+      border-color: #E07A5F;
+      color: #fff;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .btn-danger:hover {
+      background-color: #C45A3F;
+      border-color: #C45A3F;
+    }
+
+    /* LINKS */
+    a.fw-semibold {
+      color: #3B3B3B;
+      text-decoration: none;
+    }
+
+    a.fw-semibold:hover {
+      color: #7A8A5B;
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -34,87 +113,67 @@
 <body>
 
   <!-- NAVBAR -->
-  <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+  <nav class="navbar navbar-expand-sm navbar-dark">
     <div class="container-fluid">
       <a class="navbar-brand" href="/">Supermarket App</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
         <span class="navbar-toggler-icon"></span>
       </button>
-
       <div class="collapse navbar-collapse" id="collapsibleNavbar">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <a class="nav-link" href="/addProduct">Add Product</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/logout">Logout</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="/addProduct">Add Product</a></li>
+          <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
         </ul>
       </div>
     </div>
   </nav>
 
-  <!-- MAIN CONTAINER -->
+  <!-- MAIN PAGE -->
   <div class="container mt-4">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h3 class="header-title">Inventory Management</h3>
       <div>
-        <span class="badge bg-success p-2">Logged in as: <%= user.username %> (<%= user.role %>)</span>
+        <span class="badge p-2">Logged in as: <%= user.username %> (<%= user.role %>)</span>
       </div>
     </div>
 
-    <div class="card shadow-lg">
-      <div class="card-body">
-
-        <table class="table table-hover table-bordered text-center align-middle">
-          <thead>
-            <tr>
-              <th>Product Name</th>
-              <th>Image</th>
-              <th>Quantity</th>
-              <th>Price</th>
-              <th>Edit</th>
-              <th>Delete</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <% products.forEach(product => { %>
-              <tr>
-                <td>
-                  <a href="/product/<%= product.id %>" class="fw-semibold text-decoration-none">
-                    <%= product.productName %>
-                  </a>
-                </td>
-
-                <td>
-                  <img src="/images/<%= product.image %>" class="product-img">
-                </td>
-
-                <td><%= product.quantity %></td>
-                <td class="fw-bold">$<%= product.price.toFixed(2) %></td>
-
-                <td>
-                  <a href="/updateProduct/<%= product.id %>" class="btn btn-warning btn-sm px-3">
-                    Edit
-                  </a>
-                </td>
-
-                <td>
-                  <form action="/deleteProduct/<%= product.id %>" method="POST" onsubmit="return confirm('Are you sure?')">
-                    <button type="submit" class="btn btn-danger btn-sm px-3">
-                      Delete
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-
-      </div>
-    </div>
+    <table class="table table-hover table-bordered text-center align-middle">
+      <thead>
+        <tr>
+          <th>Product Name</th>
+          <th>Image</th>
+          <th>Quantity</th>
+          <th>Price</th>
+          <th>Edit</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% products.forEach(product => { %>
+          <tr>
+            <td>
+              <a href="/product/<%= product.id %>" class="fw-semibold">
+                <%= product.productName %>
+              </a>
+            </td>
+            <td>
+              <img src="/images/<%= product.image %>" class="product-img">
+            </td>
+            <td><%= product.quantity %></td>
+            <td class="fw-bold">$<%= product.price.toFixed(2) %></td>
+            <td>
+              <a href="/updateProduct/<%= product.id %>" class="btn btn-warning btn-sm px-3">Edit</a>
+            </td>
+            <td>
+              <form action="/deleteProduct/<%= product.id %>" method="POST" onsubmit="return confirm('Are you sure?')">
+                <button type="submit" class="btn btn-danger btn-sm px-3">Delete</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
 
   </div>
 </body>

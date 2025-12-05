@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,7 +15,8 @@
     <style>
         body {
             font-family: "Poppins", sans-serif;
-            background-color: #F5F2EA; /* neutral soft beige */
+            background-color: #F5F2EA;
+            /* neutral soft beige */
         }
 
         .overlay {
@@ -32,7 +34,7 @@
             padding: 40px;
             width: 100%;
             max-width: 420px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             border: 1px solid #E8E3D9;
         }
 
@@ -40,24 +42,28 @@
         .brand-title {
             font-size: 30px;
             font-weight: 700;
-            color: #3B3B3B; /* charcoal */
+            color: #3B3B3B;
+            /* charcoal */
         }
 
         .brand-subtitle {
-            color: #7A8A5B; /* muted green */
+            color: #7A8A5B;
+            /* muted green */
             font-size: 15px;
         }
 
         /* Buttons */
         .btn-primary {
-            background-color: #7A8A5B; /* muted olive */
+            background-color: #7A8A5B;
+            /* muted olive */
             border-color: #7A8A5B;
             border-radius: 10px;
             font-weight: 600;
         }
 
         .btn-primary:hover {
-            background-color: #A77E58; /* clay brown hover */
+            background-color: #A77E58;
+            /* clay brown hover */
             border-color: #A77E58;
         }
 
@@ -91,58 +97,65 @@
 
 <body>
 
-<div class="overlay">
-    <div class="login-card">
+    <div class="overlay">
+        <div class="login-card">
 
-        <!-- Logo -->
-        <div class="text-center mb-4">
-            <i class="bi bi-basket3" style="font-size: 45px; color:#7A8A5B;"></i>
-            <h1 class="brand-title mt-2">Fresh Market</h1>
-            <p class="brand-subtitle">Natural • Fresh • Everyday</p>
+            <!-- Logo -->
+            <div class="text-center mb-4">
+                <i class="bi bi-basket3" style="font-size: 45px; color:#7A8A5B;"></i>
+                <a href="/" style="text-decoration:none; color:inherit;">
+                    <h1 class="brand-title mt-2">Fresh Market</h1>
+                </a>
+                <p class="brand-subtitle">Natural • Fresh • Everyday</p>
+            </div>
+
+            <% if (errors && errors.length> 0) { %>
+                <div class="alert alert-danger">
+                    <% errors.forEach(function(error) { %>
+                        <p>
+                            <%= error %>
+                        </p>
+                        <% }); %>
+                </div>
+                <% } %>
+
+                    <% if (messages && messages.length> 0) { %>
+                        <div class="alert alert-success">
+                            <% messages.forEach(function(message) { %>
+                                <p>
+                                    <%= message %>
+                                </p>
+                                <% }); %>
+                        </div>
+                        <% } %>
+
+                            <!-- Login Form -->
+                            <form action="/login" method="POST">
+                                <div class="mb-3">
+                                    <label class="fw-bold" style="color:#3B3B3B;">Email</label>
+                                    <input type="email" class="form-control" name="email" required>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="fw-bold" style="color:#3B3B3B;">Password</label>
+                                    <input type="password" class="form-control" name="password" required>
+                                </div>
+
+                                <button class="btn btn-primary w-100">Login</button>
+                            </form>
+
+                            <div class="divider"></div>
+
+                            <p class="text-center" style="color:#3B3B3B;">
+                                No account?
+                                <a href="/register" style="color:#A77E58; text-decoration:none; font-weight:600;">
+                                    Register here
+                                </a>
+                            </p>
+
         </div>
-
-        <% if (errors && errors.length > 0) { %>
-            <div class="alert alert-danger">
-                <% errors.forEach(function(error) { %>
-                    <p><%= error %></p>
-                <% }); %>
-            </div>
-        <% } %>
-
-        <% if (messages && messages.length > 0) { %>
-            <div class="alert alert-success">
-                <% messages.forEach(function(message) { %>
-                    <p><%= message %></p>
-                <% }); %>
-            </div>
-        <% } %>
-
-        <!-- Login Form -->
-        <form action="/login" method="POST">
-            <div class="mb-3">
-                <label class="fw-bold" style="color:#3B3B3B;">Email</label>
-                <input type="email" class="form-control" name="email" required>
-            </div>
-
-            <div class="mb-4">
-                <label class="fw-bold" style="color:#3B3B3B;">Password</label>
-                <input type="password" class="form-control" name="password" required>
-            </div>
-
-            <button class="btn btn-primary w-100">Login</button>
-        </form>
-
-        <div class="divider"></div>
-
-        <p class="text-center" style="color:#3B3B3B;">
-            No account? 
-            <a href="/register" style="color:#A77E58; text-decoration:none; font-weight:600;">
-                Register here
-            </a>
-        </p>
-
     </div>
-</div>
 
 </body>
+
 </html>
