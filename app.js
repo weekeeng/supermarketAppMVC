@@ -3,17 +3,20 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const multer = require('multer');
 const path = require('path');
-const axios = require('axios');
-const QRCode = require('qrcode');
+
 require('dotenv').config();
 
-const app = express();
+// Services
+const netsService = require('./services/nets');
+const paypalService = require('./services/paypal');
 
 // Controllers
 const ProductsController = require('./controllers/ProductsController');
 const UsersController = require('./controllers/UsersController');
 
-// ----------------- Multer setup for file uploads -----------------
+const app = express();
+
+// ----------------- Multer setup -----------------
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'public/images'),
     filename: (req, file, cb) => cb(null, file.originalname)
@@ -31,7 +34,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 }
+    cookie: { maxAge: 1000*60*60*24 }
 }));
 app.use(flash());
 
@@ -70,163 +73,137 @@ const validateRegistration = (req, res, next) => {
     next();
 };
 
-// ----------------- NETS HELPER FUNCTION -----------------
-async function createNetsTransaction(amount) {
-    const response = await axios.post(
-        "https://uat.nets.openapipaas.com/merchant/v1/qr/dynamic",
-        {
-            txn_amount: amount * 100,
-            currency_code: "SGD"
-        },
-        {
-            headers: {
-                "apikey": process.env.API_KEY,
-                "projectid": process.env.PROJECT_ID,
-                "Content-Type": "application/json"
-            }
-        }
-    );
-
-    return response.data;
-}
-
-
 // ----------------- ROUTES -----------------
 
 // Home
-app.get('/', (req, res) => {
-    res.render('homepage', { user: req.session.user });
-});
+app.get('/', (req, res) => res.render('homepage', { user: req.session.user }));
 
-// Shopping page
+// Shopping
 app.get('/shopping', checkAuthenticated, ProductsController.listProductsViewShopping);
-
-// Product details
 app.get('/product/:id', checkAuthenticated, ProductsController.getProductByIdView);
 
-// Admin inventory page
+// Admin
 app.get('/inventory', checkAuthenticated, checkAdmin, ProductsController.listProductsView);
-
-// Admin: Add product
-app.get('/addProduct', checkAuthenticated, checkAdmin, (req, res) => {
-    res.render('addProduct', { user: req.session.user });
-});
+app.get('/addProduct', checkAuthenticated, checkAdmin, (req,res)=>res.render('addProduct',{user:req.session.user}));
 app.post('/addProduct', checkAuthenticated, checkAdmin, upload.single('image'), ProductsController.addProductView);
-
-// Admin: Update product
 app.get('/updateProduct/:id', checkAuthenticated, checkAdmin, ProductsController.getProductByIdEditView);
 app.post('/updateProduct/:id', checkAuthenticated, checkAdmin, upload.single('image'), ProductsController.updateProductView);
-
-// Admin: Delete product
 app.post('/deleteProduct/:id', checkAuthenticated, checkAdmin, ProductsController.deleteProductView);
 
-// ----------------- CART ROUTES -----------------
-
-app.get('/cart', checkAuthenticated, (req, res) => {
+// Cart
+app.get('/cart', checkAuthenticated, (req,res)=>{
     const cart = req.session.cart || [];
-    res.render('cart', { cart, user: req.session.user });
+    res.render('cart',{cart,user:req.session.user});
 });
-
 app.post('/add-to-cart/:id', checkAuthenticated, ProductsController.addToCart);
 app.post('/update-cart/:id', checkAuthenticated, ProductsController.updateCartQuantity);
 app.post('/remove-from-cart/:id', checkAuthenticated, ProductsController.removeFromCart);
 
-// ----------------- CHECKOUT ROUTES -----------------
-
+// Checkout
 app.get('/checkout', checkAuthenticated, ProductsController.checkoutView);
 
-// New: save delivery info and redirect to payment
-app.post('/checkout', checkAuthenticated, (req, res) => {
+// Handle checkout form
+app.post('/checkout', checkAuthenticated, (req,res)=>{
+    const { paymentMethod } = req.body;
     req.session.delivery = req.body;
-    res.redirect('/payment');
+
+    if(paymentMethod === 'NETQR') return res.redirect('/payment/netqr');
+    if(paymentMethod === 'PayPal') return res.redirect('/payment/paypal');
+
+    req.flash('error','Invalid payment method');
+    res.redirect('/checkout');
 });
 
-// ❗ DO NOT use place-order directly anymore from checkout page
-app.post('/place-order', checkAuthenticated, ProductsController.placeOrderView);
-
-
-// ----------------- PAYMENT ROUTES (CA2) -----------------
-
-app.get('/payment', checkAuthenticated, async (req, res) => {
+// ----------------- NETS QR Payment -----------------
+app.get('/payment/netqr', checkAuthenticated, async (req,res)=>{
     const cart = req.session.cart || [];
+    if(cart.length===0) return res.redirect('/cart');
 
-    if (cart.length === 0) {
-        req.flash('error', 'Cart is empty');
-        return res.redirect('/cart');
-    }
-
-    // Calculate total amount
-    let totalAmount = 0;
-    cart.forEach(item => {
-        totalAmount += item.price * item.quantity;
-    });
+    const total = cart.reduce((sum,item)=>sum + item.price*item.quantity, 0);
 
     try {
-        const netsData = await createNetsTransaction(totalAmount);
-        const qrImage = await QRCode.toDataURL(netsData.qr_code);
+        const netsData = await netsService.generateQrCode(total);
+        req.session.netsTxnRef = netsData.txn_retrieval_ref;
 
-        // store NETS references in session
-        req.session.txn_id = netsData.txn_id;
-        req.session.txn_ref = netsData.txn_retrieval_ref;
-
-        res.render('payment', { qrImage, totalAmount });
-
-    } catch (err) {
+        res.render('netsQr',{
+            title:'Scan NETS QR',
+            qrCodeUrl:`data:image/png;base64,${netsData.qr_code}`,
+            txnRetrievalRef:netsData.txn_retrieval_ref,
+            total,
+            networkStatus: netsData.network_status
+        });
+    } catch(err){
         console.error(err);
-        res.render('paymentFailed', { message: "Unable to create NETS transaction" });
+        res.render('paymentFailed',{message:"NETS QR generation failed"});
     }
 });
 
+// NETS QR success/fail simulation
+app.get('/payment/netqr/success', checkAuthenticated, async (req,res)=>{
+    await ProductsController.placeOrderView(req,res);
+    res.render('paymentSuccess',{message:"NETS Payment Successful"});
+});
+app.get('/payment/netqr/fail', checkAuthenticated,(req,res)=>{
+    res.render('paymentFailed',{message:"NETS Payment Failed"});
+});
 
-// After user scans QR and clicks "I Have Paid"
-app.get('/check-payment', checkAuthenticated, async (req, res) => {
+// ----------------- PayPal Payment -----------------
+app.get('/payment/paypal', checkAuthenticated, async (req,res)=>{
+    const cart = req.session.cart || [];
+    if(cart.length===0) return res.redirect('/cart');
+
+    const total = cart.reduce((sum,item)=>sum + item.price*item.quantity, 0);
 
     try {
-        // For CA2 demo we simulate success
-        const paymentSuccess = true;
+        const order = await paypalService.createOrder(total.toFixed(2));
+        req.session.paypalOrderId = order.id;
 
-        if (paymentSuccess) {
+        res.render('payment',{
+            orderId: order.id,
+            totalAmount: total
+        });
+    } catch(err){
+        console.error(err);
+        res.render('paymentFailed',{message:"Error creating PayPal order"});
+    }
+});
 
-            // ✅ Only place order AFTER payment success
-            await ProductsController.placeOrderView(req, res);
+// PayPal capture route
+app.post('/paypal-capture', checkAuthenticated, async (req,res)=>{
+    const { orderId } = req.body;
 
-            // show success page
-            return res.render('paymentSuccess', {
-                message: "Transaction Successful"
-            });
-
-        } else {
-            return res.render('paymentFailed', {
-                message: "Transaction Failed"
-            });
+    try {
+        const captureData = await paypalService.captureOrder(orderId);
+        if(captureData.status==='COMPLETED'){
+            await ProductsController.placeOrderView(req,res);
+            return res.json({success:true, redirectUrl:'/payment/paypal/success'});
         }
 
-    } catch (err) {
+        res.json({success:false, redirectUrl:'/payment/paypal/fail'});
+    } catch(err){
         console.error(err);
-        res.render('paymentFailed', {
-            message: "Error verifying payment"
-        });
+        res.json({success:false, redirectUrl:'/payment/paypal/fail'});
     }
 });
 
-
-// ----------------- USER ACCOUNT ROUTES -----------------
-
-app.get('/register', (req, res) => {
-    res.render('register', { messages: req.flash('error'), formData: req.flash('formData')[0] });
+app.get('/payment/paypal/success', checkAuthenticated,(req,res)=>{
+    res.render('paymentSuccess',{message:"PayPal Payment Successful"});
 });
+app.get('/payment/paypal/fail', checkAuthenticated,(req,res)=>{
+    res.render('paymentFailed',{message:"PayPal Payment Failed"});
+});
+// homepage
+app.get('/', (req, res) => res.render('homepage', { user: req.session.user }));
+
+// ----------------- User -----------------
+app.get('/register', (req,res)=>res.render('register',{messages:req.flash('error'),formData:req.flash('formData')[0]}));
 app.post('/register', validateRegistration, UsersController.registerUser);
 
-app.get('/login', (req, res) => {
-    res.render('login', { messages: req.flash('success'), errors: req.flash('error') });
-});
+app.get('/login',(req,res)=>res.render('login',{messages:req.flash('success'),errors:req.flash('error')}));
 app.post('/login', UsersController.loginUser);
 
-app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
-});
+app.get('/logout',(req,res)=>{req.session.destroy();res.redirect('/')});
 
-// ----------------- Start server -----------------
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// ----------------- Start -----------------
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, ()=>console.log(`Server running on port ${PORT}`));

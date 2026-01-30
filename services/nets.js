@@ -1,89 +1,72 @@
 const axios = require("axios");
 
+
 exports.generateQrCode = async (req, res) => {
   const { cartTotal } = req.body;
-  console.log(cartTotal);
+
+  // Validate cart total
+  if (!cartTotal || Number(cartTotal) <= 0) {
+    console.error("Invalid cart total for NETS QR:", cartTotal);
+    return res.redirect("/nets-qr/fail");
+  }
+
   try {
     const requestBody = {
-      txn_id: "sandbox_nets|m|8ff8e5b6-d43e-4786-8ac5-7accf8c5bd9b", // Default for testing
-      amt_in_dollars: cartTotal,
-      notify_mobile: 0,
+      // Required sandbox txn_id (can be static or dynamic)
+      txn_id: "sandbox_nets|m|8ff8e5b6-d43e-4786-8ac5-7accf8c5bd9b",
+      amt_in_dollars: Number(cartTotal).toFixed(2),
+      notify_mobile: 0
     };
- 
+
+    // Use .env variables
     const response = await axios.post(
-      `https://sandbox.nets.openapipaas.com/api/v1/common/payments/nets-qr/request`,
+      `${process.env.NETS_API_URL}/api/v1/common/payments/nets-qr/request`,
       requestBody,
       {
         headers: {
-          "api-key": process.env.API_KEY,
+          "api-key": process.env.NETS_API_KEY,
           "project-id": process.env.PROJECT_ID,
-        },
+          "Content-Type": "application/json"
+        }
       }
     );
 
-    const getCourseInitIdParam = () => {
-      try {
-        require.resolve("./../course_init_id");
-        const { courseInitId } = require("../course_init_id");
-        console.log("Loaded courseInitId:", courseInitId);
+    const qrData = response?.data?.result?.data;
+    console.log("NETS QR response:", qrData);
 
-        return courseInitId ? `${courseInitId}` : "";
-      } catch (error) {
-        return "";
-      }
-    };
-
-    const qrData = response.data.result.data;
-    console.log({ qrData });
 
     if (
+      qrData &&
       qrData.response_code === "00" &&
       qrData.txn_status === 1 &&
-      qrData.qr_code
+      qrData.qr_code &&
+      qrData.txn_retrieval_ref
     ) {
-      console.log("QR code generated successfully");
-
-      // Store transaction retrieval reference for later use
-      const txnRetrievalRef = qrData.txn_retrieval_ref;
-      const courseInitId = getCourseInitIdParam();
-
-      const webhookUrl = `https://sandbox.nets.openapipaas.com/api/v1/common/payments/nets/webhook?txn_retrieval_ref=${txnRetrievalRef}&course_init_id=${courseInitId}`;
-
-      console.log("Transaction retrieval ref:" + txnRetrievalRef);
-      console.log("courseInitId:" + courseInitId);
-      console.log("webhookUrl:" + webhookUrl);
-
-      
-      // Render the QR code page with required data
-      res.render("netsQr", {
-        total: cartTotal,
+      const context = req.session.netPaymentContext || "checkout";
+      const backUrl = context === "paylater" ? "/sunnyside-paylater" : "/checkout";
+      const backLabel = context === "paylater" ? "Back to PayLater" : "Back to Checkout";
+      return res.render("netsqr", {
         title: "Scan to Pay",
+        total: cartTotal,
         qrCodeUrl: `data:image/png;base64,${qrData.qr_code}`,
-        txnRetrievalRef: txnRetrievalRef,
-        courseInitId: courseInitId,
-        networkCode: qrData.network_status,
-        timer: 300, // Timer in seconds
-        webhookUrl: webhookUrl,
-         fullNetsResponse: response.data,
-        apiKey: process.env.API_KEY,
+        txnRetrievalRef: qrData.txn_retrieval_ref,
+        apiKey: process.env.NETS_API_KEY,
         projectId: process.env.PROJECT_ID,
-      });
-    } else {
-      // Handle partial or failed responses
-      let errorMsg = "An error occurred while generating the QR code.";
-      if (qrData.network_status !== 0) {
-        errorMsg =
-          qrData.error_message || "Transaction failed. Please try again.";
-      }
-      res.render("netsQrFail", {
-        title: "Error",
-        responseCode: qrData.response_code || "N.A.",
-        instructions: qrData.instruction || "",
-        errorMsg: errorMsg,
+        backUrl,
+        backLabel,
+        user: req.session.user
       });
     }
+
+    // QR  failed msg
+    console.error("NETS QR generation failed:", qrData);
+    return res.redirect("/nets-qr/fail");
+
   } catch (error) {
-    console.error("Error in generateQrCode:", error.message);
-    res.redirect("/nets-qr/fail");
+    
+    console.error("NETS generateQrCode error:", error.response?.data || error.message);
+    return res.redirect("/nets-qr/fail");
   }
 };
+
+

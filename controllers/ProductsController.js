@@ -127,20 +127,28 @@ const ProductsController = {
     // CHECKOUT
     // ============================
     checkoutView: (req, res) => {
-        const cart = req.session.cart || [];
+    const cart = req.session.cart || [];
 
-        if (!cart.length) {
-            req.flash('error', 'Your cart is empty');
-            return res.redirect('/cart');
-        }
+    if (!cart.length) {
+        req.flash('error', 'Your cart is empty');
+        return res.redirect('/cart');
+    }
 
-        const total = cart
-            .reduce((sum, item) =>
-                sum + item.price * item.quantity, 0)
-            .toFixed(2);
+    const total = cart
+        .reduce((sum, item) =>
+            sum + item.price * item.quantity, 0)
+        .toFixed(2);
 
-        res.render('checkout', { cart, total, user: req.session.user });
-    },
+    // Generate unique orderId
+    const orderId = `ORD${Date.now()}`;
+
+    res.render('checkout', {
+        cart,
+        total,
+        user: req.session.user,
+        orderId  // <-- pass it to EJS
+    });
+},
 
     // ============================
     // PLACE ORDER + REDUCE STOCK
