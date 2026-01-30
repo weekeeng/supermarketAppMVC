@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transaction Failed</title>
+</head>
+<body>
+    <div class="container">
+        <h1><%= message || "Payment Failed" %></h1>
+        <p>Please try again later.</p>
+
+        <div class="netsQrPaymentGatewayWebpage">
+            <div class="netsQrTxnFailStatus">
+                <img src="/images/redCross.png" width="30%" alt="Transaction Fail" />
+                <h2>TRANSACTION FAILED</h2>
+            </div>
+        </div>
+
+        <a href="/cart">Return to Cart</a>
+    </div>
+</body>
+</html>

@@ -3,6 +3,10 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const multer = require('multer');
 const path = require('path');
+const axios = require('axios');
+const QRCode = require('qrcode');
+require('dotenv').config();
+
 const app = express();
 
 // Controllers
@@ -20,18 +24,17 @@ const upload = multer({ storage });
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: false }));
-app.use(express.json()); // parse JSON bodies
+app.use(express.json());
 
 // ----------------- Session + flash -----------------
 app.use(session({
     secret: process.env.SESSION_SECRET || 'secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 day
+    cookie: { maxAge: 1000 * 60 * 60 * 24 }
 }));
 app.use(flash());
 
-// expose session and flash to all views
 app.use((req, res, next) => {
     res.locals.session = req.session;
     res.locals.user = req.session ? req.session.user : null;
@@ -67,11 +70,32 @@ const validateRegistration = (req, res, next) => {
     next();
 };
 
+// ----------------- NETS HELPER FUNCTION -----------------
+async function createNetsTransaction(amount) {
+    const response = await axios.post(
+        "https://uat.nets.openapipaas.com/merchant/v1/qr/dynamic",
+        {
+            txn_amount: amount * 100,
+            currency_code: "SGD"
+        },
+        {
+            headers: {
+                "apikey": process.env.API_KEY,
+                "projectid": process.env.PROJECT_ID,
+                "Content-Type": "application/json"
+            }
+        }
+    );
+
+    return response.data;
+}
+
+
 // ----------------- ROUTES -----------------
 
 // Home
 app.get('/', (req, res) => {
-    res.render('index', { user: req.session.user });
+    res.render('homepage', { user: req.session.user });
 });
 
 // Shopping page
@@ -103,38 +127,101 @@ app.get('/cart', checkAuthenticated, (req, res) => {
     res.render('cart', { cart, user: req.session.user });
 });
 
-// Add to cart
 app.post('/add-to-cart/:id', checkAuthenticated, ProductsController.addToCart);
-
-// Update cart item quantity
 app.post('/update-cart/:id', checkAuthenticated, ProductsController.updateCartQuantity);
-
-// Remove from cart
 app.post('/remove-from-cart/:id', checkAuthenticated, ProductsController.removeFromCart);
 
 // ----------------- CHECKOUT ROUTES -----------------
 
-// ⭐ Checkout View
 app.get('/checkout', checkAuthenticated, ProductsController.checkoutView);
 
-// ⭐ Place Order — updates product quantities
+// New: save delivery info and redirect to payment
+app.post('/checkout', checkAuthenticated, (req, res) => {
+    req.session.delivery = req.body;
+    res.redirect('/payment');
+});
+
+// ❗ DO NOT use place-order directly anymore from checkout page
 app.post('/place-order', checkAuthenticated, ProductsController.placeOrderView);
+
+
+// ----------------- PAYMENT ROUTES (CA2) -----------------
+
+app.get('/payment', checkAuthenticated, async (req, res) => {
+    const cart = req.session.cart || [];
+
+    if (cart.length === 0) {
+        req.flash('error', 'Cart is empty');
+        return res.redirect('/cart');
+    }
+
+    // Calculate total amount
+    let totalAmount = 0;
+    cart.forEach(item => {
+        totalAmount += item.price * item.quantity;
+    });
+
+    try {
+        const netsData = await createNetsTransaction(totalAmount);
+        const qrImage = await QRCode.toDataURL(netsData.qr_code);
+
+        // store NETS references in session
+        req.session.txn_id = netsData.txn_id;
+        req.session.txn_ref = netsData.txn_retrieval_ref;
+
+        res.render('payment', { qrImage, totalAmount });
+
+    } catch (err) {
+        console.error(err);
+        res.render('paymentFailed', { message: "Unable to create NETS transaction" });
+    }
+});
+
+
+// After user scans QR and clicks "I Have Paid"
+app.get('/check-payment', checkAuthenticated, async (req, res) => {
+
+    try {
+        // For CA2 demo we simulate success
+        const paymentSuccess = true;
+
+        if (paymentSuccess) {
+
+            // ✅ Only place order AFTER payment success
+            await ProductsController.placeOrderView(req, res);
+
+            // show success page
+            return res.render('paymentSuccess', {
+                message: "Transaction Successful"
+            });
+
+        } else {
+            return res.render('paymentFailed', {
+                message: "Transaction Failed"
+            });
+        }
+
+    } catch (err) {
+        console.error(err);
+        res.render('paymentFailed', {
+            message: "Error verifying payment"
+        });
+    }
+});
+
 
 // ----------------- USER ACCOUNT ROUTES -----------------
 
-// Register
 app.get('/register', (req, res) => {
     res.render('register', { messages: req.flash('error'), formData: req.flash('formData')[0] });
 });
 app.post('/register', validateRegistration, UsersController.registerUser);
 
-// Login
 app.get('/login', (req, res) => {
     res.render('login', { messages: req.flash('success'), errors: req.flash('error') });
 });
 app.post('/login', UsersController.loginUser);
 
-// Logout
 app.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/');

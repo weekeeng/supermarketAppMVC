@@ -26,45 +26,38 @@
     </ul>
 
     <!-- Checkout Form -->
-    <form action="/place-order" method="POST" class="card p-4 shadow">
+    <a href="/payment" class="btn btn-primary">Proceed to NETS Payment</a>
 
-        <h4 class="mb-3">Delivery Information</h4>
 
-        <div class="mb-3">
-            <label class="form-label">Full Name</label>
-            <input type="text" name="fullName" class="form-control" value="<%= user ? user.username : '' %>" required>
-        </div>
+     <form action="/checkout" method="POST">
 
-        <div class="mb-3">
-            <label class="form-label">Delivery Address</label>
-            <textarea name="address" class="form-control" rows="2" required><%= user ? user.address : '' %></textarea>
-        </div>
+    <h4 class="mb-3">Delivery Information</h4>
 
-        <div class="mb-3">
-            <label class="form-label">Contact Number</label>
-            <input type="text" name="contact" class="form-control" value="<%= user ? user.contact : '' %>" required>
-        </div>
+    <div class="mb-3">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="fullName" class="form-control" value="<%= user ? user.username : '' %>" required>
+    </div>
 
-        <h4 class="mt-4">Payment Method</h4>
+    <div class="mb-3">
+        <label class="form-label">Delivery Address</label>
+        <textarea name="address" class="form-control" rows="2" required><%= user ? user.address : '' %></textarea>
+    </div>
 
-        <div class="form-check">
-            <input class="form-check-input" type="radio" name="paymentMethod" value="Credit Card" <%= (!user || (user && user.preferredPayment === 'Credit Card')) ? '': '' %> required>
-            <label class="form-check-label">Credit Card</label>
-        </div>
+    <div class="mb-3">
+        <label class="form-label">Contact Number</label>
+        <input type="text" name="contact" class="form-control" value="<%= user ? user.contact : '' %>" required>
+    </div>
 
-        <div class="form-check">
-            <input class="form-check-input" type="radio" name="paymentMethod" value="PayNow" <%= (!user || (user && user.preferredPayment === 'PayNow')) ? '': '' %>>
-            <label class="form-check-label">PayNow</label>
-        </div>
+    <h4 class="mt-4">Payment Method</h4>
 
-        <div class="form-check mb-4">
-            <input class="form-check-input" type="radio" name="paymentMethod" value="Cash on Delivery" <%= (!user || (user && user.preferredPayment === 'Cash on Delivery')) ? 'checked' : '' %>>
-            <label class="form-check-label">Cash on Delivery</label>
-        </div>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="paymentMethod" value="NETS QR" checked>
+        <label class="form-check-label">NETS QR</label>
+    </div>
 
-        <button type="submit" class="btn btn-success w-100">Place Order</button>
-    </form>
+    <button type="submit" class="btn btn-success w-100 mt-3">
+        Proceed to NETS Payment
+    </button>
+
+</form>
 </div>
-
-</body>
-</html>

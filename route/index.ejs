@@ -1,0 +1,15 @@
+const netsService = require('../services/netsService');
+const QRCode = require('qrcode');
+
+router.get('/payment', async (req, res) => {
+    const totalAmount = req.session.cartTotal;
+
+    const netsData = await netsService.createTransaction(totalAmount);
+
+    const qrImage = await QRCode.toDataURL(netsData.qr_code);
+
+    req.session.txn_id = netsData.txn_id;
+    req.session.txn_ref = netsData.txn_retrieval_ref;
+
+    res.render('payment', { qrImage });
+});
